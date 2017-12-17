@@ -10,341 +10,163 @@ import Foundation
 import XCTest
 
 /**
- * It can be helpful to have simulator device bezels visible during this test.
+ * **tl;dr** Why can't `XCUIDevice` be relied on to query the current orientation of an app? What is the better way? (Is there one?)
  *
- * Sleeping 2 seconds after invoking orientation changes to give time for UI (and, hopefully, the proxy) to update.
+ * Run this test case, and first it will fail with the orientation being reported as Portrait.
+ * Run it again (and again), and it will fail with the orientation as Face Up.
+ *
+ * # The Problem
+ *
+ * When creating UI tests, it can be beneficial to know which orientation the app is in,
+ * as the set of interface elements are on-screen and accessible can vary (such as with split view controllers).
+ * Leveraging the `XCUIDevice` API seems like the appropriate way to manage orientation for this purpose.
+ * However, while _setting_ `orientation` works, `XCUIDevice` only reports back the original orientation
+ * of the appliation within the simulator window.
+ *
+ * __It never updates which orientation it reports as current during a test run.__
+ *
+ * Therefore, if a given test scenario needs to ensure it is in Portrait for the assertions to be valid,
+ * that testcase is not able to query for the current orientation.
+ * Further, if a test scenario needs to rotate back and forth based on other conditions for a given workflow,
+ * it cannot deduce if it the device/interface are already in the required orientation.
+ *
+ * This original orientation will likely be Portrait if the simulator just launched
+ * (even if the simulator window actually launched to a landscape orienttation itself, Springboard will be in Portrait).
+ * If you manually change the orientation of the simulator, that new orientation will be reported on the next run (only).
+ *
+ * This produces different results for the same test code, depending on environment and (potentially) from one run to the next.
+ * And this is the opposite of what you want in a test suite. Reliable repeatability is key. `XCUIDevice` does not currently provide this.
+ *
+ * Blindly rotating at every possible need (such as in every `setUp()` invocation for a known starting orientation) has the cost of
+ * having to wait for a rotation animation to complete -- whether an animation was present or not. This is _horrible_ for test run times.
+ *
+ * ## Other Notes
+ * - Breaking variations of this test(s) into separate methods with `launch()` instead of `activate()` has no effect.
+ * - `XCUIDevice()` vs. `XCUIDevice.shared` makes no difference in the results.
+ * - `UIApplication.shared.statusBarOrientation` is not accessible in a UI test (and is deprecated anyway).
+ * - Registering for `NSNotification.Name.UIApplicationDidChangeStatusBarOrientation` in an XCUITest is not a viable workaround, either.
+ * - It can be helpful to have simulator device bezels visible during this test.
  */
 class XCUIDeviceIssuesUITests: XCTestCase {
     
-    var originalOrientation = XCUIDevice.shared.orientation
+    // TODO: test on actual device
+    // TODO: also test iOS 10 vs 11
     
     override func setUp() {
         super.setUp()
         
         continueAfterFailure = true
         XCUIApplication().activate()
-        // Set initial orientation
-        // TODO: clean up, see if this even helps...
-        XCUIDevice().orientation = UIDeviceOrientation.landscapeLeft // TEST: is this working?
-        XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeLeft // Just to be thorough.
-        sleep(2) // Wait for any rotation to complete.
+        
+        // Note: Without this (and with `activate()` instead of `launch()`, and no `teatDown()),
+        //       repeat runs will report `faceUp` since/when it is the final issued orientation below
+        //       (based on being the last test method alphabetically (in Xcode 9.2 (9C40b))).
+        //       Using `launch()` instead of `activate()` will fail with `landscapeRight` (from `setUp()`) the first run through,
+        //       but then fail with `faceUp` after that (and take longer for the tests to execute).
+        setOrientationToKnownValue()
     }
     
+    /** Note: This causes subsequent runs to always fail as `landscapeRight`.
     override func tearDown() {
-        XCUIDevice().orientation = originalOrientation
-        XCUIDevice.shared.orientation = originalOrientation
-        sleep(2)
+        setOrientationToKnownValue()
         
         super.tearDown()
-    }
+    }*/
     
-    // MARK: - The Primary Issue
+    // MARK: - Orientation Tests
     
     /**
      * Only one of these will pass -- when it matches the orientation of the simulator itself.
      *
      * Rotate the simulator window, then re-run this test to get a different result.
      * This is not reliable for automated testing.
-     *
-     * Note that _setting_ `orientation` works, rotating the UI within the simulator.
-     * But then `XCUIDevice` reports the orientation of the simulator window itself, which does not match the simulated device.
-     *
-     * Also note that portrait is still reported if the sim window chrome is in landscape but the Springboard is in Portrait
-     * (such as when the sim was just launched into landscape (from prior run) and not manually rotated).
-     *
-     * Breaking these into separate test methods with `launch()` instead of `activate()` has no effect.
-     * `XCUIDevice()` vs. `XCUIDevice.shared` makes no difference in the results.
      */
     func testReportedOrientationMatchesTheIssuedOrientation() {
-        // FIXME: test on actual device
-        // TODO: also test iOS 10 vs 11
-        // TODO: XCUIApplication().statusBars.firstMatch.orientation
-        // FIXME: or is it the test-launch-time interface orientation?!!?
-        // Note: Only using `shared` hook here.
         XCUIDevice.shared.orientation = UIDeviceOrientation.portrait
-        sleep(2)
+        XCUIDevice.shared.waitForRotationToComplete()
         var result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.portrait)
         XCTAssertTrue(result.matched, result.failureMessage!)
         
         XCUIDevice.shared.orientation = UIDeviceOrientation.portraitUpsideDown
-        sleep(2)
+        XCUIDevice.shared.waitForRotationToComplete()
         result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.portraitUpsideDown)
         XCTAssertTrue(result.matched, result.failureMessage!)
         
         XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeLeft
-        sleep(2)
+        XCUIDevice.shared.waitForRotationToComplete()
         result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.landscapeLeft)
         XCTAssertTrue(result.matched, result.failureMessage!)
         
         XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeRight
-        sleep(2)
+        XCUIDevice.shared.waitForRotationToComplete()
         result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.landscapeRight)
         XCTAssertTrue(result.matched, result.failureMessage!)
         
         XCUIDevice.shared.orientation = UIDeviceOrientation.faceUp
-        sleep(2)
+        XCUIDevice.shared.waitForRotationToComplete()
         result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.faceUp)
         XCTAssertTrue(result.matched, result.failureMessage!)
         
         XCUIDevice.shared.orientation = UIDeviceOrientation.faceDown
-        sleep(2)
+        XCUIDevice.shared.waitForRotationToComplete()
         result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.faceDown)
         XCTAssertTrue(result.matched, result.failureMessage!)
     }
     
-    func testReportedOrientationMatchesTheIssuedOrientation_withNewProxy() {
-        XCUIDevice.shared.orientation = UIDeviceOrientation.portrait
-        sleep(3)
-        var result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.portrait, device: XCUIDevice())
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        XCUIDevice.shared.orientation = UIDeviceOrientation.portraitUpsideDown
-        sleep(3)
-        result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.portraitUpsideDown, device: XCUIDevice())
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeLeft
-        sleep(3)
-        result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.landscapeLeft, device: XCUIDevice())
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeRight
-        sleep(3)
-        result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.landscapeRight, device: XCUIDevice())
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        XCUIDevice.shared.orientation = UIDeviceOrientation.faceUp
-        sleep(3)
-        result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.faceUp, device: XCUIDevice())
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        XCUIDevice.shared.orientation = UIDeviceOrientation.faceDown
-        sleep(3)
-        result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.faceDown, device: XCUIDevice())
+    func testEnsurePortrait() {
+        XCUIDevice.shared.ensurePortrait()
+        let result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.portrait)
         XCTAssertTrue(result.matched, result.failureMessage!)
     }
     
-    func testTwoStepWithLaunchBetween_stepOne() {
-        XCUIApplication().launch()
-        XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeRight
-        sleep(2)
-        let result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.landscapeRight, device: XCUIDevice())
+    func testEnsureLandscape() {
+        XCUIDevice.shared.ensureLandscape()
+        let result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.landscapeLeft)
         XCTAssertTrue(result.matched, result.failureMessage!)
     }
     
-    func testTwoStepWithLaunchBetween_stepTwo() {
-        XCUIApplication().launch()
-        XCUIDevice.shared.orientation = UIDeviceOrientation.portraitUpsideDown
-        sleep(2)
-        let result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.portraitUpsideDown, device: XCUIDevice())
+    func testEnsureMethodsInSuccession() {
+        XCUIDevice.shared.ensurePortrait()
+        var result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.portrait)
+        XCTAssertTrue(result.matched, result.failureMessage!)
+    
+        XCUIDevice.shared.ensureLandscape()
+        result = assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation.landscapeLeft)
         XCTAssertTrue(result.matched, result.failureMessage!)
     }
     
-    // MARK: - Orientation Tests
-    
-    func testCurrentOrientationDetection_viaNew() {
-        let first = XCUIDevice().orientation
-        let second = XCUIDevice().orientation
-        
-        XCTAssertEqual(first, second)
-    }
-    
-    func testCurrentOrientationDetection_viaShared() {
-        let first = XCUIDevice.shared.orientation
-        let second = XCUIDevice.shared.orientation
-        
-        XCTAssertEqual(first, second)
-    }
-    
-    func testCurrentOrientationDetection_sharedVsNew() {
-        let fromNew = XCUIDevice().orientation
-        let fromShared = XCUIDevice.shared.orientation
-        
-        XCTAssertEqual(fromNew, fromShared)
-    }
-    
-    func testSameOrientationReported_afterUpdating_viaNew() {
-        XCUIDevice().orientation = UIDeviceOrientation.faceDown
-        sleep(2)
-        let fromNew = XCUIDevice().orientation
-        let fromShared = XCUIDevice.shared.orientation
-        
-        XCTAssertEqual(fromNew, fromShared)
-    }
-    
-    func testSameOrientationReported_afterUpdating_viaShared() {
-        XCUIDevice.shared.orientation = UIDeviceOrientation.faceDown
-        sleep(2)
-        let fromNew = XCUIDevice().orientation
-        let fromShared = XCUIDevice.shared.orientation
-        
-        XCTAssertEqual(fromNew, fromShared)
-    }
-    
-    func testSameOrientationReported_afterUpdatingBoth_toDifferentValues() {
-        XCUIDevice().orientation = UIDeviceOrientation.faceDown
-        sleep(2)
-        XCUIDevice.shared.orientation = UIDeviceOrientation.portraitUpsideDown
-        sleep(2)
-        let fromNew = XCUIDevice().orientation
-        let fromShared = XCUIDevice.shared.orientation
-        
-        XCTAssertEqual(fromNew, fromShared)
-    }
-    
-    func testSameOrientationReported_afterUpdating_viaSavedReference() {
-        // Only using non-shared reference here.
-        let expectedOrientation = UIDeviceOrientation.landscapeRight
-        let deviceProxy = XCUIDevice()
-        deviceProxy.orientation = expectedOrientation
-        sleep(2)
-        
-        let result = assertCurrentOrientationIs(givenOrientation: expectedOrientation, device: deviceProxy)
-        XCTAssertTrue(result.matched, result.failureMessage!)
-    }
-    
-    // TODO: are these good once it all passes?
-    
-    func testSameOrientationReported_isNotPortraitWhenItShouldNotBe_viaNew() {
-        XCUIDevice().orientation = UIDeviceOrientation.faceDown
-        sleep(2)
-        
-        XCTAssertNotEqual(XCUIDevice().orientation, UIDeviceOrientation.portrait,
-                          "The simulator window itself must not be in portrait orientation (regardless of app interface orientation)")
-    }
-    
-    func testSameOrientationReported_isNotPortraitWhenItShouldNotBe_viaShared() {
-        XCUIDevice.shared.orientation = UIDeviceOrientation.faceDown
-        sleep(2)
-        
-        XCTAssertNotEqual(XCUIDevice.shared.orientation, UIDeviceOrientation.portrait,
-                          "The simulator window itself must not be in portrait orientation (regardless of app interface orientation)")
-    }
-    
-    func testUpdatingOrientation_viaNew() {
-        let expectedOrientation = UIDeviceOrientation.faceDown
-        XCUIDevice().orientation = expectedOrientation
-        sleep(2)
-        
-        let result = assertCurrentOrientationIs(givenOrientation: expectedOrientation, device: XCUIDevice())
-        XCTAssertTrue(result.matched, result.failureMessage!)
-    }
-    
-    func testUpdatingOrientation_viaShared() {
-        let expectedOrientation = UIDeviceOrientation.faceDown
-        XCUIDevice.shared.orientation = expectedOrientation
-        sleep(2)
-        
-        let result = assertCurrentOrientationIs(givenOrientation: expectedOrientation, device: XCUIDevice.shared)
-        XCTAssertTrue(result.matched, result.failureMessage!)
-    }
-    
-    func testStraightEqualityCheckSucceeds() {
-        XCTAssertEqual(UIDeviceOrientation.landscapeLeft, UIDeviceOrientation.landscapeLeft)
-        XCTAssertTrue(UIDeviceOrientation.landscapeLeft == UIDeviceOrientation.landscapeLeft)
-        XCTAssertEqual(UIDeviceOrientation.unknown, .unknown,
-                       "Should be save to use either fully-qualified or non-fully-qualified enum references")
-    }
-    
-    func testUpdatingAndComparingOrientation_viaNew() {
-        let expectedOrientation = UIDeviceOrientation.portraitUpsideDown
-        XCUIDevice().orientation = expectedOrientation
-        sleep(2)
-        let result = assertCurrentOrientationIs(givenOrientation: expectedOrientation)
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        // Change again
-        let changedOrientation = UIDeviceOrientation.landscapeRight
-        XCUIDevice().orientation = changedOrientation
-        sleep(2)
-        let changedResult = assertCurrentOrientationIs(givenOrientation: changedOrientation)
-        XCTAssertTrue(changedResult.matched, changedResult.failureMessage!)
-    }
-    
-    func testUpdatingAndComparingOrientation_viaShared() {
-        let expectedOrientation = UIDeviceOrientation.portraitUpsideDown
-        XCUIDevice.shared.orientation = expectedOrientation
-        sleep(2)
-        let result = assertCurrentOrientationIs(givenOrientation: expectedOrientation)
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        // Change again
-        let changedOrientation = UIDeviceOrientation.landscapeRight
-        XCUIDevice.shared.orientation = changedOrientation
-        sleep(2)
-        let changedResult = assertCurrentOrientationIs(givenOrientation: changedOrientation)
-        XCTAssertTrue(changedResult.matched, changedResult.failureMessage!)
-    }
-    
-    func testUpdatingAndComparingOrientation_viaReusedReference_viaNew() {
-        let deviceProxy = XCUIDevice()
-        let expectedOrientation = UIDeviceOrientation.portraitUpsideDown
-        deviceProxy.orientation = expectedOrientation
-        sleep(2)
-        let result = assertCurrentOrientationIs(givenOrientation: expectedOrientation)
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        // Change again
-        let changedOrientation = UIDeviceOrientation.landscapeRight
-        deviceProxy.orientation = changedOrientation
-        sleep(2)
-        let changedResult = assertCurrentOrientationIs(givenOrientation: changedOrientation, device: deviceProxy)
-        XCTAssertTrue(changedResult.matched, changedResult.failureMessage!)
-    }
-    
-    func testUpdatingAndComparingOrientation_viaReusedReference_viaShared_andDifferentOrientation() {
-        let deviceProxy = XCUIDevice.shared
-        let expectedOrientation = UIDeviceOrientation.landscapeLeft
-        deviceProxy.orientation = expectedOrientation
-        sleep(2)
-        let result = assertCurrentOrientationIs(givenOrientation: expectedOrientation)
-        XCTAssertTrue(result.matched, result.failureMessage!)
-        
-        // Change again
-        let changedOrientation = UIDeviceOrientation.landscapeRight
-        deviceProxy.orientation = changedOrientation
-        sleep(2)
-        let changedResult = assertCurrentOrientationIs(givenOrientation: changedOrientation, device: deviceProxy)
-        XCTAssertTrue(changedResult.matched, changedResult.failureMessage!)
-    }
-    
-    
-    // FIXME: add tests using extension methods
-    
-    
-    // MARK: - Instance Reference Tests
-    
-    /*
-     (lldb) po self
-     <XCUIDevice: 0x608000012b80> // from inside extension
-     (lldb) po XCUIDevice()
-     <XCUIDevice: 0x604000015060> // different with each invocation (unsurprising)
-     (lldb) po XCUIDevice.shared
-     <XCUIDevice: 0x60c0000146a0> // reference remains consistent on subsequent invocations (expected)
+    /**
+     * Run this test suite, then re-run it, and the other methods will fail saying the orientation set here is the current one.
+     * _Unless_ it is set to a different orientation in `tearDown()`.
+     *
+     * It is the last one alphabetically by test method name.
      */
-    
-    func testReferenceRemainsSame_viaShared() {
-        let first = XCUIDevice.shared
-        let _ = XCUIDevice.shared
-        let third = XCUIDevice.shared
-        
-        XCTAssertEqual(first, third, "The shared reference should remain consistent")
-    }
-    
-    func testReferenceRemainsSame_viaNew() {
-        let first = XCUIDevice()
-        let second = XCUIDevice()
-        
-        XCTAssertNotEqual(first, second, "The proxy references are never the same") // Does this matter?
+    func testXYZLastMethodToExecute_causesSubsequentRunsToFailWithFaceUp() {
+        XCUIDevice().orientation = UIDeviceOrientation.faceUp
+        XCUIDevice().waitForRotationToComplete()
+        XCTAssert(true)
     }
     
     // MARK: - Helpers
+    
+    /**
+     * Set to a known 'clean slate' orientatioon.
+     *
+     * Using `landscapeRight` here to be different from `ensureLandscape()` expectation.
+     * Note: Setting it redundantly to remove other odd behavior.
+     */
+    func setOrientationToKnownValue() {
+        XCUIDevice().orientation = UIDeviceOrientation.landscapeRight
+        XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeRight
+        XCUIDevice.shared.waitForRotationToComplete()
+    }
     
     struct OrientationMatchAssertion {
         let matched: Bool
         let failureMessage: String?
     }
     
+    /** Tests for equality and reports back the given orientation in the case of failure. */
     func assertCurrentOrientationIs(givenOrientation: UIDeviceOrientation, device: XCUIDevice = XCUIDevice.shared) -> OrientationMatchAssertion {
         switch device.orientation {
         case UIDeviceOrientation.portrait:

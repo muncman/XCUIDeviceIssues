@@ -11,8 +11,8 @@ import XCTest
 var WRAPPER_LAST_ORIENTATION_SET_VIA_XCUIDEVICE_PROXY = XCUIDevice.shared.orientation
 
 /**
- * Extensino to help tests do the right thing for differences in the application interface in different orientations.
- * 
+ * Extension to help tests do the right thing for differences in the application interface in different orientations.
+ *
  * Using fully-qualified enum values here to explicitly avoid `UIInterfaceOrientation` values.
  */
 extension XCUIDevice {
@@ -27,7 +27,9 @@ extension XCUIDevice {
     func ensurePortrait() {
         if orientation != UIDeviceOrientation.portrait && orientation != UIDeviceOrientation.portraitUpsideDown {
             orientation = UIDeviceOrientation.portrait
-            sleep(2) // Let rotation finish.
+            XCUIDevice().orientation = UIDeviceOrientation.portrait
+            XCUIDevice.shared.orientation = UIDeviceOrientation.portrait
+            waitForRotationToComplete()
         }
     }
     
@@ -37,7 +39,9 @@ extension XCUIDevice {
     func ensureLandscape() {
         if orientation != UIDeviceOrientation.landscapeLeft && orientation != UIDeviceOrientation.landscapeRight {
             orientation = UIDeviceOrientation.landscapeLeft
-            sleep(2) // Let rotation finish.
+            XCUIDevice().orientation = UIDeviceOrientation.landscapeLeft
+            XCUIDevice.shared.orientation = UIDeviceOrientation.landscapeLeft
+            waitForRotationToComplete()
         }
     }
     
@@ -66,6 +70,14 @@ extension XCUIDevice {
      */
     func isOrientationSame(as otherOrientation: UIDeviceOrientation) -> Bool {
         return orientation == otherOrientation
+    }
+    
+    // NARK: - Private Methods
+    
+    /** Sleep to give time for UI (and, hopefully, the proxy) to finish rotating before checking for the new value. */
+    func waitForRotationToComplete() {
+        let duration = (UIApplication.shared.statusBarOrientationAnimationDuration * 2.0) + 0.5 // account for 180° rotations, with buffer
+        Thread.sleep(forTimeInterval: duration)
     }
     
 }
