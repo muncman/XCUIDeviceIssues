@@ -15,6 +15,7 @@
 		387C333E1FE19564001A6D3F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 387C333C1FE19564001A6D3F /* LaunchScreen.storyboard */; };
 		387C33491FE19564001A6D3F /* XCUIDeviceIssuesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387C33481FE19564001A6D3F /* XCUIDeviceIssuesTests.swift */; };
 		387C33541FE19564001A6D3F /* XCUIDeviceIssuesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387C33531FE19564001A6D3F /* XCUIDeviceIssuesUITests.swift */; };
+		387C33621FE19ABF001A6D3F /* XCUIDeviceExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387C33611FE19ABF001A6D3F /* XCUIDeviceExtensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +50,7 @@
 		387C334F1FE19564001A6D3F /* XCUIDeviceIssuesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XCUIDeviceIssuesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		387C33531FE19564001A6D3F /* XCUIDeviceIssuesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCUIDeviceIssuesUITests.swift; sourceTree = "<group>"; };
 		387C33551FE19564001A6D3F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		387C33611FE19ABF001A6D3F /* XCUIDeviceExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCUIDeviceExtensions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,8 +124,9 @@
 		387C33521FE19564001A6D3F /* XCUIDeviceIssuesUITests */ = {
 			isa = PBXGroup;
 			children = (
-				387C33531FE19564001A6D3F /* XCUIDeviceIssuesUITests.swift */,
 				387C33551FE19564001A6D3F /* Info.plist */,
+				387C33611FE19ABF001A6D3F /* XCUIDeviceExtensions.swift */,
+				387C33531FE19564001A6D3F /* XCUIDeviceIssuesUITests.swift */,
 			);
 			path = XCUIDeviceIssuesUITests;
 			sourceTree = "<group>";
@@ -280,6 +283,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				387C33621FE19ABF001A6D3F /* XCUIDeviceExtensions.swift in Sources */,
 				387C33541FE19564001A6D3F /* XCUIDeviceIssuesUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
