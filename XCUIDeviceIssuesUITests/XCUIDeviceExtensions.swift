@@ -17,10 +17,6 @@ var WRAPPER_LAST_ORIENTATION_SET_VIA_XCUIDEVICE_PROXY = XCUIDevice.shared.orient
  */
 extension XCUIDevice {
     
-    open override func didChangeValue(forKey key: String, withSetMutation mutationKind: NSKeyValueSetMutationKind, using objects: Set<AnyHashable>) {
-        print("changing key: \(key)") // TODO:
-    }
-    
     /**
      * Changes device orientation to _Portrait_ if it is not already in either portrait orientation.
      */

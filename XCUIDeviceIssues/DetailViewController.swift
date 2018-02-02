@@ -12,14 +12,6 @@ class DetailViewController: UIViewController {
 
     @IBOutlet weak var detailDescriptionLabel: UILabel!
 
-    func configureView() {
-        if let detail = detailItem {
-            if let label = detailDescriptionLabel {
-                label.text = detail.description
-            }
-        }
-    }
-
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -31,7 +23,14 @@ class DetailViewController: UIViewController {
             configureView()
         }
     }
-
+    
+    func configureView() {
+        if let detail = detailItem {
+            if let label = detailDescriptionLabel {
+                label.text = detail.description
+            }
+        }
+    }
 
 }
 

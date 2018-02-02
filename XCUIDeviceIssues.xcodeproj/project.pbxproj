@@ -82,12 +82,12 @@
 			isa = PBXGroup;
 			children = (
 				387C33311FE19564001A6D3F /* AppDelegate.swift */,
-				387C33331FE19564001A6D3F /* MasterViewController.swift */,
-				387C33351FE19564001A6D3F /* DetailViewController.swift */,
-				387C33371FE19564001A6D3F /* Main.storyboard */,
 				387C333A1FE19564001A6D3F /* Assets.xcassets */,
-				387C333C1FE19564001A6D3F /* LaunchScreen.storyboard */,
+				387C33351FE19564001A6D3F /* DetailViewController.swift */,
 				387C333F1FE19564001A6D3F /* Info.plist */,
+				387C333C1FE19564001A6D3F /* LaunchScreen.storyboard */,
+				387C33371FE19564001A6D3F /* Main.storyboard */,
+				387C33331FE19564001A6D3F /* MasterViewController.swift */,
 			);
 			path = XCUIDeviceIssues;
 			sourceTree = "<group>";
